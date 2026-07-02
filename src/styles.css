@@ -339,157 +339,178 @@ button.ghost {
 .delta-pos { color: var(--green); }
 .delta-neg { color: var(--accent); }
 
-/* dashboard cluster (bottom-right) */
-.hud-cluster {
+/* ---------- Steering wheel (bottom-centre) ---------- */
+.wheel {
   position: absolute;
-  right: 16px;
-  bottom: 16px;
-  display: flex;
-  align-items: flex-end;
-  gap: 14px;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%) scale(var(--wheel-scale, 1));
+  transform-origin: bottom center;
+  width: 420px;
+  z-index: 3;
+  pointer-events: none;
 }
-
-.dash {
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 45%, #1a1d29, #0b0d15 78%);
-  border: 2px solid rgba(255, 255, 255, 0.14);
+.wheel-grip {
+  position: absolute;
+  bottom: 4px;
+  width: 66px;
+  height: 118px;
+  background: linear-gradient(180deg, #1c1e26, #0c0d12);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.wheel-grip.left { left: -30px; border-radius: 40px 12px 22px 40px; transform: rotate(12deg); }
+.wheel-grip.right { right: -30px; border-radius: 12px 40px 40px 22px; transform: rotate(-12deg); }
+.wheel-face {
   position: relative;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), inset 0 0 30px rgba(0, 0, 0, 0.6);
+  background:
+    linear-gradient(135deg, rgba(60, 66, 82, 0.35), rgba(10, 11, 16, 0.2) 40%),
+    repeating-linear-gradient(45deg, #16181f 0 6px, #1b1e27 6px 12px);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px 16px 26px 26px;
+  padding: 9px 12px 12px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
-.dash svg { position: absolute; inset: 0; }
-.dash .readout {
-  position: absolute;
-  inset: 0;
+.wheel-leds {
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 0;
+  gap: 4px;
+  margin-bottom: 8px;
 }
-.dash .gear {
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1;
-}
-.dash .rule {
-  width: 40px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.25);
-  margin: 3px 0;
-}
-.dash .kph {
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1;
-}
-.dash .unit {
-  font-size: 9px;
-  color: var(--muted);
-  letter-spacing: 0.2em;
-  margin-top: 2px;
+.wled {
+  width: 15px;
+  height: 9px;
+  border-radius: 2px;
+  background: #20242e;
+  transition: background 0.04s;
 }
 
-.dash-side {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-end;
+/* LCD */
+.lcd {
+  background: linear-gradient(180deg, #05100a, #030805);
+  border: 1px solid rgba(120, 200, 150, 0.2);
+  border-radius: 8px;
+  padding: 7px 9px 8px;
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.8);
 }
-
-/* status lights row */
-.status-lights {
-  display: flex;
-  gap: 6px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 7px 9px;
-}
-.slight {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: #05070c;
-  background: #1c2130;
-  color: #4c566b;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: all 0.12s;
-}
-.slight.on { color: #05070c; }
-.slight.drs.on { background: var(--green); box-shadow: 0 0 10px var(--green); }
-.slight.abs.on { background: var(--accent-2); box-shadow: 0 0 10px var(--accent-2); color:#05070c;}
-.slight.tc.on { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
-.slight.pit.on { background: var(--accent); box-shadow: 0 0 10px var(--accent); color: #fff; }
-.slight.light.on { background: #fff; box-shadow: 0 0 12px #fff; }
-.slight.rev.on { background: #ff5a4d; box-shadow: 0 0 10px #ff5a4d; color: #fff; }
-
-/* fuel + ers + tyre strip */
-.gauge-strip {
-  width: 172px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 8px 10px;
-  display: grid;
-  gap: 7px;
-}
-.gauge-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 0.08em;
-}
-.gauge-row .lab { width: 30px; }
-.bar {
-  flex: 1;
-  height: 8px;
-  border-radius: 6px;
+.lcd .bar {
+  height: 7px;
+  border-radius: 4px;
   background: rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
-.bar i {
-  display: block;
-  height: 100%;
-  border-radius: 6px;
+.lcd .bar i { display: block; height: 100%; border-radius: 4px; transition: width 0.1s; }
+.lcd-rpmbar i { background: #31d15b; }
+.lcd-main {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr 1fr;
+  align-items: center;
+  margin: 5px 0;
 }
-.bar.fuel i { background: linear-gradient(90deg, var(--amber), #ffd24d); }
-.bar.ers i { background: linear-gradient(90deg, var(--accent-2), #7ef0ff); }
-.bar.tyre i { background: linear-gradient(90deg, var(--green), #b6ff8c); }
-.gauge-row b {
-  width: 34px;
-  text-align: right;
-  color: var(--text);
-  font-size: 11px;
+.lcd-col { display: flex; flex-direction: column; }
+.lcd-col.left { align-items: flex-start; }
+.lcd-col.center { align-items: center; }
+.lcd-col.right { align-items: flex-end; }
+.lcd-label {
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  color: #5f8f72;
 }
+.lcd-label b { color: #d7f7e2; }
+.lcd-gear {
+  font-size: 52px;
+  font-weight: 800;
+  line-height: 0.9;
+  color: #eafff0;
+  text-shadow: 0 0 14px rgba(49, 209, 91, 0.4);
+}
+.lcd-kph { font-size: 30px; font-weight: 800; color: #eafff0; line-height: 1; }
+.lcd-rpm { font-size: 20px; font-weight: 700; color: #ff6a5a; line-height: 1.1; }
+.lcd-delta { font-size: 22px; font-weight: 800; color: #9aa2b1; line-height: 1; }
+.lcd-laptime { font-size: 16px; font-weight: 700; color: #d7f7e2; line-height: 1.2; }
+.lcd-fuel { width: 100%; margin-bottom: 2px; }
+.lcd-fuel i { background: linear-gradient(90deg, #ffb300, #ffd24d); }
+.lcd-soc { margin-top: 2px; }
+.lcd-soc i { background: linear-gradient(90deg, #31d15b, #b6ff8c); }
+.lcd-soclabel { font-size: 8px; letter-spacing: 0.14em; color: #5f8f72; }
+.lcd-soclabel b { color: #d7f7e2; }
 
-/* rev light strip (top-center) */
-.rev-strip {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+/* knobs */
+.wheel-knobs {
   display: flex;
-  gap: 5px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 7px 10px;
+  justify-content: space-around;
+  margin: 10px 2px 8px;
 }
-.rev-led {
-  width: 12px;
+.knob-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.knob-wrap small { font-size: 8px; letter-spacing: 0.1em; color: var(--muted); }
+.knob {
+  pointer-events: auto;
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, #2a2e39, #0c0d12 78%);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.6);
+}
+.knob:active { transform: scale(0.94); }
+.knob-dot {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 3px;
   height: 12px;
-  border-radius: 3px;
-  background: #1c2130;
-  transition: background 0.05s;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  transform-origin: 50% 17px;
+}
+.knob.eng .knob-dot { background: #ffb300; box-shadow: 0 0 6px #ffb300; }
+.knob.bb .knob-dot { background: #ff5a4d; box-shadow: 0 0 6px #ff5a4d; }
+.knob.diff .knob-dot { background: #00d2ff; box-shadow: 0 0 6px #00d2ff; }
+.knob.ers .knob-dot { background: #31d15b; box-shadow: 0 0 6px #31d15b; }
+.knob-val { font-size: 11px; font-weight: 700; color: var(--text); }
+
+/* function buttons */
+.wheel-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.wbtn {
+  pointer-events: auto;
+  min-width: 40px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #191c24;
+  color: #8b93a3;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.wbtn:active { transform: translateY(1px); }
+.wbtn.n { color: #66e29a; }
+.wbtn.drs.on { background: var(--green); color: #05231a; box-shadow: 0 0 12px var(--green); }
+.wbtn.ot.on { background: #ffd24d; color: #241c00; box-shadow: 0 0 12px #ffd24d; }
+.wbtn.pit.on { background: var(--accent); color: #fff; box-shadow: 0 0 12px var(--accent); }
+.wbtn.n.on { background: #66e29a; color: #05231a; }
+.wbtn.tc.on { background: var(--amber); color: #241c00; box-shadow: 0 0 10px var(--amber); }
+.wbtn.abs.on { background: var(--accent-2); color: #05231a; box-shadow: 0 0 10px var(--accent-2); }
+.wbtn.lights.on { background: #fff; color: #111; box-shadow: 0 0 12px #fff; }
+
+@media (max-width: 900px), (max-height: 560px) {
+  .wheel { --wheel-scale: 0.82; }
+}
+@media (max-width: 720px) {
+  .wheel { --wheel-scale: 0.68; }
 }
 
 /* gear-assist / notifications (center) */
@@ -522,20 +543,23 @@ button.ghost {
 }
 .hud-map canvas { width: 100%; height: 100%; }
 
-/* pause hint */
+/* controls hint (kept clear of the centre wheel) */
 .hud-hint {
   position: absolute;
-  bottom: 14px;
-  left: 14px;
+  bottom: 10px;
+  left: 12px;
+  max-width: 300px;
+  z-index: 1;
   font-size: 10px;
   color: var(--muted);
-  letter-spacing: 0.1em;
-  line-height: 1.7;
+  letter-spacing: 0.08em;
+  line-height: 1.6;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 7px 9px;
 }
+@media (max-width: 900px) { .hud-hint { display: none; } }
 
 /* ---------- Touch controls ---------- */
 #touch {

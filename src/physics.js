@@ -37,12 +37,14 @@ export class Vehicle {
 
     // systems
     this.drs = false;
-    this.ers = false;
+    this.ers = false;          // manual overtake (held button)
+    this.ersMode = 2;          // 0 OFF · 1 BUILD · 2 BALANCED · 3 HOTLAP (auto deploy)
     this.tc = assist.tcDefault;
     this.abs = assist.absDefault;
     this.lights = false;
     this.pitLimiter = false;
     this.ignition = true;
+    this.neutral = false;      // gearbox in neutral (coast)
 
     // consumables
     this.fuel = 100;       // %
@@ -135,9 +137,14 @@ export class Vehicle {
 
     // ---------------- Engine / traction ----------------
     let power = CAR_SPEC.maxEnginePower * this.ecuF * 746; // watts-ish
-    if (this.ers && this.ersCharge > 0) power *= 1 + CAR_SPEC.ersBoost / 780;
+    // ERS deploys automatically per the selected mode, and fully when the
+    // overtake button is held. Deployment fraction 0..1.
+    const modeDeploy = [0, 0.45, 0.7, 1.0][this.ersMode] || 0;
+    this.ersDeploy = this.ersCharge > 0 && input.throttle > 0.1
+      ? Math.max(this.ers ? 1 : 0, modeDeploy) : 0;
+    if (this.ersDeploy > 0) power *= 1 + (CAR_SPEC.ersBoost / 780) * this.ersDeploy;
     if (this.pitLimiter) power = Math.min(power, 60000);
-    if (this.fuel <= 0 || !this.ignition) power = 0;
+    if (this.fuel <= 0 || !this.ignition || this.neutral) power = 0;
 
     let driveForce = 0;
     if (input.throttle > 0) {
@@ -288,8 +295,8 @@ export class Vehicle {
 
     // ---------------- Consumables ----------------
     const load01 = input.throttle * (this.ecuF);
-    this.fuel = Math.max(0, this.fuel - load01 * dt * 0.06 * (this.ers ? 1.3 : 1));
-    if (this.ers && input.throttle > 0.1) this.ersCharge = Math.max(0, this.ersCharge - dt * 6);
+    this.fuel = Math.max(0, this.fuel - load01 * dt * 0.06 * (1 + this.ersDeploy * 0.3));
+    if (this.ersDeploy > 0) this.ersCharge = Math.max(0, this.ersCharge - dt * 6 * this.ersDeploy);
     else this.ersCharge = Math.min(100, this.ersCharge + dt * (input.brake > 0 ? 5 : 1.2)); // regen
     const wearRate = (this.slip * 0.5 + this.wheelSpin * 0.6 + Math.abs(this.vLat) * 0.02) * dt * 0.4;
     this.tyreWear = Math.max(0, this.tyreWear - wearRate);
