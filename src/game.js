@@ -11,7 +11,8 @@ import { Vehicle } from './physics.js';
 import { Controls } from './controls.js';
 import { HUD } from './hud.js';
 import { Timing } from './timing.js';
-import { TEAMS, ASSISTS } from './config.js';
+import { Field } from './ai.js';
+import { TEAMS, ASSISTS, steerRampRate } from './config.js';
 
 export class Game {
   constructor(canvas) {
@@ -49,8 +50,8 @@ export class Game {
     this.scene.add(this.track.group);
     this.env = buildEnvironment(this.scene, this.track);
 
-    // car
-    this.carModel = buildCar(team);
+    // player car (number 1)
+    this.carModel = buildCar(team, 1);
     this.scene.add(this.carModel.group);
 
     // physics
@@ -58,6 +59,10 @@ export class Game {
     const s = this.track.start, d = this.track.startDir;
     const yaw = Math.atan2(d.x, d.y);
     this.vehicle.reset(s.x, s.y, yaw);
+
+    // AI opponents (liveries other than the player's)
+    const rivalTeams = TEAMS.filter((t) => t.id !== team.id);
+    this.field = new Field(this.scene, this.track, rivalTeams, 5);
 
     // timing
     this.timing = new Timing(this.track);
@@ -74,6 +79,7 @@ export class Game {
       onReset: () => this._recover(),
       onLook: (v) => (this._lookBack = v),
     });
+    this.controls.steerSpeed = steerRampRate(setup.steerRate);
 
     // HUD
     this.hud = new HUD(document.getElementById('hud'), this.track, (n, d) => this._toggle(n, d));
@@ -137,6 +143,11 @@ export class Game {
       case 'bb': v.setup.brakeBias = wrap(v.setup.brakeBias, 50, 70, 1); this.hud.toast(`BRAKE BIAS ${v.setup.brakeBias}%F`, 700); break;
       case 'diff': v.setup.diff = wrap(v.setup.diff, 0, 100, 5); this.hud.toast(`DIFF ${v.setup.diff}%`, 700); break;
       case 'ers': v.ersMode = wrap(v.ersMode, 0, 3, 1); this.hud.toast(`ERS ${['OFF', 'BUILD', 'BALANCED', 'HOTLAP'][v.ersMode]}`, 800); break;
+      case 'str':
+        v.setup.steerRate = wrap(v.setup.steerRate, 1, 10, 1);
+        this.controls.steerSpeed = steerRampRate(v.setup.steerRate);
+        this.hud.toast(`STEERING RATE ${v.setup.steerRate}`, 800);
+        break;
     }
   }
 
@@ -197,12 +208,21 @@ export class Game {
     v.onKerb = surf.onKerb;
     v.offTrack = surf.offTrack;
 
+    // AI field + race position
+    if (this.field) {
+      this.field.update(dt, this._countdown <= 0);
+      // player starts on pole (dist 0); lap is 0 until the lights go out
+      const lapsDone = Math.max(0, this.timing.lap - 1);
+      const playerDist = (lapsDone + this.timing.progress) * this.track.length;
+      this.timing.position = this.field.playerPosition(playerDist);
+    }
+
     this.controls.endFrame();
 
     this._syncCarModel(dt);
     this._updateCamera(dt);
     this._updateAudio(dt);
-    this.hud.update(v, this.timing, dt);
+    this.hud.update(v, this.timing, dt, this.field ? this.field.blips() : null);
   }
 
   _syncCarModel(dt) {
@@ -332,10 +352,11 @@ export class Game {
     if (this.carModel) { this.scene.remove(this.carModel.group); }
     if (this.env?.scenery) this.scene.remove(this.env.scenery);
     if (this.env?.ground) this.scene.remove(this.env.ground);
-    // clear all lights/objects
+    // clear all lights/objects (AI cars included)
     for (let i = this.scene.children.length - 1; i >= 0; i--) {
       this.scene.remove(this.scene.children[i]);
     }
+    this.field = null;
     if (this.hud && full) this.hud.destroy();
     if (this._eng) { try { this._eng.gain.gain.value = 0; } catch (e) {} }
   }

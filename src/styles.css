@@ -471,6 +471,7 @@ button.ghost {
 .knob.bb .knob-dot { background: #ff5a4d; box-shadow: 0 0 6px #ff5a4d; }
 .knob.diff .knob-dot { background: #00d2ff; box-shadow: 0 0 6px #00d2ff; }
 .knob.ers .knob-dot { background: #31d15b; box-shadow: 0 0 6px #31d15b; }
+.knob.str .knob-dot { background: #c07bff; box-shadow: 0 0 6px #c07bff; }
 .knob-val { font-size: 11px; font-weight: 700; color: var(--text); }
 
 /* function buttons */

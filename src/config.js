@@ -5,7 +5,7 @@
 
 // Single source of truth for the build version shown on screen.
 // Bump this on every update so it's clear what to expect.
-export const VERSION = 'v1.6.0';
+export const VERSION = 'v1.7.0';
 
 export const TEAMS = [
   { id: 'scarlet',  name: 'Scarlet Corse',   body: 0xd4160b, accent: 0xf4d03f, tyre: 0x111214 },
@@ -36,7 +36,17 @@ export const SETUP_SCHEMA = [
   { key: 'suspension',  label: 'Suspension',      min: 1,  max: 10, step: 1,  def: 5,  lo: 'Soft',     hi: 'Stiff' },
   { key: 'gearRatio',   label: 'Final Drive',     min: 1,  max: 10, step: 1,  def: 6,  lo: 'Accel',    hi: 'Top speed' },
   { key: 'ecuMap',      label: 'Engine Map',      min: 1,  max: 6,  step: 1,  def: 4,  lo: 'Economy',  hi: 'Qualifying' },
+  // Steering rate: how quickly the steering winds on while a direction is held.
+  // Low = a tap barely turns and you must hold to steer more (smooth, precise);
+  // high = quick, direct, darty. Adjustable live from the wheel's STEER knob.
+  { key: 'steerRate',   label: 'Steering Rate',   min: 1,  max: 10, step: 1,  def: 4,  lo: 'Smooth',   hi: 'Direct' },
 ];
+
+// Map the 1..10 steering-rate setting to a per-second wind-on rate used by the
+// input smoother. Low values make taps produce small turns.
+export function steerRampRate(setting) {
+  return 1.1 + ((setting - 1) / 9) * 5.4; // 1.1 (slow/progressive) .. 6.5 (direct)
+}
 
 export function defaultSetup() {
   const s = {};
