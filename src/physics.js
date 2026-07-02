@@ -54,13 +54,13 @@ export class Vehicle {
 
     this.inertia = CAR_SPEC.mass * 1.5;
     this.wheelbase = 3.0;
-    // Rear-biased weight distribution (engine behind the driver). Static axle
-    // load is proportional to the distance to the OPPOSITE axle, so a > b puts
-    // more load — and grip — on the rear, which stops the back stepping out so
-    // easily. Combined with the rear grip bias below (wider rear tyres).
-    this.a = 1.70;         // CG -> front axle
-    this.b = 1.30;         // CG -> rear axle
-    this.rearGripBias = 1.18; // wider rear tyres carry more lateral load
+    // Mildly rear-biased weight (engine behind the driver). Static axle load is
+    // proportional to the distance to the OPPOSITE axle, so a > b puts a bit
+    // more load — and grip — on the rear for stability, but only mildly so the
+    // front still has the authority to rotate the car (avoids heavy understeer).
+    this.a = 1.56;         // CG -> front axle
+    this.b = 1.44;         // CG -> rear axle
+    this.rearGripBias = 1.07; // wider rear tyres carry a little more lateral load
   }
 
   reset(x, z, yaw) {
@@ -182,7 +182,11 @@ export class Vehicle {
     if (this.vLong < -0.3) this.reverse = true;
 
     // ---------------- Steering / slip angles ----------------
-    const maxSteer = 0.55 * (1 - Math.min(0.6, this.speed / 90)); // less lock at speed
+    // Lots of lock for slow corners/hairpins, bleeding down to a few degrees at
+    // speed. Keeping high-speed steer angles small (near the tyre's efficient
+    // slip range rather than way past it) makes the turn response monotonic —
+    // more steering always turns tighter, never wider.
+    const maxSteer = 0.60 * (1 - Math.min(0.76, this.speed / 58)); // ~34° parked → ~8° at 160kph
     // NB: the chase camera looks along +z, which mirrors world X on screen, so
     // a positive steer input must produce a turn toward the driver's right
     // (negative world-X / negative yaw). Hence the leading minus sign.
@@ -202,11 +206,12 @@ export class Vehicle {
       // lateral force scale with the available grip/load instead of being a
       // fixed tiny scalar (the old cS=9.5 produced ~1 N and the car wouldn't
       // turn above walking pace).
-      const peakSlip = 0.14; // rad
+      // Front grip peaks at a slightly larger slip angle than the rear, so the
+      // rear still lets go last (stable) but the front bites hard enough to
+      // rotate the car instead of washing out into understeer.
+      const peakSlip = 0.16; // rad
       const Cf = maxForceF / peakSlip;
-      // Stiffer rear (grips earlier, saturates later) so the back end resists
-      // stepping out — the main cure for snap-oversteer.
-      const Cr = maxForceR / (peakSlip * 0.8);
+      const Cr = maxForceR / (peakSlip * 0.9);
       Fyf = clamp(-Cf * slipF, -maxForceF, maxForceF);
       Fyr = clamp(-Cr * slipR, -maxForceR, maxForceR);
       this.slip = Math.abs(slipR);
@@ -239,13 +244,33 @@ export class Vehicle {
 
     if (this.speed > 2.2) {
       this.yawRate += (torque / (this.inertia * diffDamp)) * dt;
+      // Steering authority: the pure slip model settles into an understeer-
+      // limited yaw balance well short of the grip limit, so the car feels like
+      // it won't turn. Nudge yaw toward the steering target, but CAP that target
+      // at the grip-limited yaw rate so it stays planted and can't spin.
+      const maxLatA = (maxForceF + maxForceR) / CAR_SPEC.mass;
+      const gripYawMax = maxLatA / Math.max(this.speed, 6);
+      let targetYaw = (this.vLong / this.wheelbase) * Math.tan(steer);
+      targetYaw = clamp(targetYaw, -gripYawMax, gripYawMax);
+      this.yawRate += (targetYaw - this.yawRate) * 0.12;
     }
-    // damp lateral velocity slightly (tyre relaxation)
-    this.vLat *= 0.98;
-    // yaw damping grows with rear slip to tame snap-oversteer, plus a hard cap
-    const slipDamp = 1 - Math.min(0.08, this.slip * 0.14);
-    this.yawRate *= 0.985 * slipDamp;
-    const yawCap = 2.4;
+    // Light tyre-relaxation damping only. The real yaw damping comes from the
+    // rear slip angle (slipR rises with yawRate -> restoring torque); a heavy
+    // constant multiplier here would just strangle rotation and make steering
+    // feel dead, so keep these close to 1.
+    this.vLat *= 0.995;
+    // Sideslip limiter: cap how far the velocity vector may lag the heading, so
+    // the grip "catches" the slide. This keeps the car from drifting wildly,
+    // makes cornering radius shrink monotonically with steering, and — being
+    // grip-dependent — lets Sim slide more and Arcade stay planted.
+    const maxSlipAng = 0.26 / this.assist.grip; // rad (~15° balanced, ~11° arcade, ~18° sim)
+    const maxVLat = Math.tan(maxSlipAng) * Math.max(absLong, 4);
+    this.vLat = clamp(this.vLat, -maxVLat, maxVLat);
+    // A touch of extra yaw damping that grows with rear slip catches snap
+    // oversteer without limiting normal cornering, plus a hard spin cap.
+    const slipDamp = 1 - Math.min(0.05, this.slip * 0.08);
+    this.yawRate *= slipDamp;
+    const yawCap = 2.6;
     this.yawRate = clamp(this.yawRate, -yawCap, yawCap);
 
     // stop creep
