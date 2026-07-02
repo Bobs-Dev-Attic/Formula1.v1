@@ -7,7 +7,7 @@
 
 import * as THREE from 'three';
 
-export function buildCar(team) {
+export function buildCar(team, number = 2) {
   const car = new THREE.Group();
 
   const body = new THREE.MeshStandardMaterial({ color: team.body, roughness: 0.4, metalness: 0.15 });
@@ -180,7 +180,7 @@ export function buildCar(team) {
   car.add(head);
 
   // ---------------- Number roundel on the nose ----------------
-  const num = makeNumberDecal('2', team);
+  const num = makeNumberDecal(String(number), team);
   num.position.set(0, 0.5, 1.9);
   num.rotation.x = -0.2;
   car.add(num);

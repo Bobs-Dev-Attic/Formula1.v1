@@ -47,6 +47,7 @@ export class HUD {
       bb: root.querySelector('.knob.bb'),
       diff: root.querySelector('.knob.diff'),
       ers: root.querySelector('.knob.ers'),
+      str: root.querySelector('.knob.str'),
     };
 
     // buttons / indicators
@@ -66,6 +67,7 @@ export class HUD {
     clickAct(this.$knobs.bb, 'bb');
     clickAct(this.$knobs.diff, 'diff');
     clickAct(this.$knobs.ers, 'ers');
+    clickAct(this.$knobs.str, 'str');
     clickAct(this.$btn.drs, 'drsToggle');
     clickAct(this.$btn.ot, 'ot');
     clickAct(this.$btn.pit, 'pit');
@@ -136,6 +138,7 @@ export class HUD {
           <div class="wheel-knobs">
             ${knob('eng', 'ENGINE')}
             ${knob('bb', 'BRK BIAS')}
+            ${knob('str', 'STEER')}
             ${knob('diff', 'DIFF')}
             ${knob('ers', 'ERS')}
           </div>
@@ -167,7 +170,8 @@ export class HUD {
     this._toastTimer = ms;
   }
 
-  update(v, timing, dt) {
+  update(v, timing, dt, blips) {
+    this._blips = blips;
     const pct = Math.max(0, Math.min(1, v.rpmPct));
 
     // LCD numerics
@@ -195,6 +199,7 @@ export class HUD {
     // knobs
     this._setKnob('eng', v.setup.ecuMap, 1, 6, v.setup.ecuMap);
     this._setKnob('bb', v.setup.brakeBias, 50, 70, v.setup.brakeBias);
+    this._setKnob('str', v.setup.steerRate, 1, 10, v.setup.steerRate);
     this._setKnob('diff', v.setup.diff, 0, 100, v.setup.diff);
     this._setKnob('ers', v.ersMode, 0, 3, ERS_MODES[v.ersMode]);
 
@@ -278,6 +283,17 @@ export class HUD {
     const [sx, sy] = this._proj(this.track.start.x, this.track.start.y);
     ctx.fillStyle = '#00d2ff';
     ctx.fillRect(sx - 3, sy - 3, 6, 6);
+    // AI opponents
+    if (this._blips) {
+      ctx.fillStyle = '#e8c14a';
+      for (const b of this._blips) {
+        const [bx, by] = this._proj(b.x, b.z);
+        ctx.beginPath();
+        ctx.arc(bx, by, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // player
     const [cx, cy] = this._proj(v.x, v.z);
     ctx.fillStyle = '#e10600';
     ctx.beginPath();

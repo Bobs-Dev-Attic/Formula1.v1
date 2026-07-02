@@ -38,13 +38,20 @@ export const TRACKS = [
     walls: true,
     scenery: 'city',
     laps: 5,
-    // A single, clean closed loop (no self-intersections) with street-circuit
-    // kinks and a tight corner.
-    waypoints: [
-      [0, 0], [72, -4], [138, -18], [188, -48], [212, -98], [208, -152],
-      [180, -196], [130, -218], [70, -222], [12, -214], [-46, -194],
-      [-96, -160], [-124, -114], [-128, -62], [-104, -24], [-52, -6],
-    ],
+    // Longer, more technical single loop. Generated as a star-shaped (radial)
+    // curve so it is guaranteed not to cross itself however many corners we add;
+    // the radius harmonics create a mix of straights, sweeps and tight corners.
+    waypoints: (() => {
+      const pts = [];
+      const N = 30, cx = 0, cy = -120;
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * Math.PI * 2;
+        const r = 150 + 34 * Math.sin(a * 3 + 0.5) + 20 * Math.sin(a * 5)
+          + 13 * Math.sin(a * 2 - 1) + 9 * Math.sin(a * 7 + 2);
+        pts.push([Math.round(cx + Math.cos(a) * r * 1.18), Math.round(cy + Math.sin(a) * r * 0.8)]);
+      }
+      return pts;
+    })(),
   },
   {
     id: 'grandpark',
@@ -54,12 +61,19 @@ export const TRACKS = [
     walls: false,
     scenery: 'country',
     laps: 4,
-    // A single, clean flowing loop (no self-intersections) with fast sweeps.
-    waypoints: [
-      [0, 0], [120, 10], [230, -4], [300, -60], [318, -150], [338, -244],
-      [300, -332], [212, -382], [100, -390], [-22, -370], [-124, -312],
-      [-188, -216], [-202, -110], [-166, -24], [-82, 26],
-    ],
+    // Longer, flowing high-speed loop with more corners. Star-shaped so it can
+    // never self-intersect; gentler harmonics give fast sweeps over tight turns.
+    waypoints: (() => {
+      const pts = [];
+      const N = 32, cx = 0, cy = -190;
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * Math.PI * 2;
+        const r = 220 + 46 * Math.sin(a * 2 + 0.3) + 26 * Math.sin(a * 4)
+          + 16 * Math.sin(a * 3 - 0.8) + 10 * Math.sin(a * 6 + 1);
+        pts.push([Math.round(cx + Math.cos(a) * r * 1.3), Math.round(cy + Math.sin(a) * r * 0.92)]);
+      }
+      return pts;
+    })(),
   },
   {
     id: 'oval',

@@ -29,6 +29,7 @@ export class Controls {
     this._steerTarget = 0;
     this._throttleTarget = 0;
     this._brakeTarget = 0;
+    this.steerSpeed = 3.4; // per-second wind-on rate; set from setup by the game
     this.keys = {};
 
     this._bindKeyboard();
@@ -138,9 +139,14 @@ export class Controls {
     };
     this.input.throttle = smooth(this.input.throttle, this._throttleTarget, 9);
     this.input.brake = smooth(this.input.brake, this._brakeTarget, 12);
-    // steering returns to centre faster than it applies for controllable feel
-    const steerRate = this._steerTarget === 0 ? 7 : 5;
-    this.input.steer = smooth(this.input.steer, this._steerTarget, steerRate);
+    // Progressive steering: the raw value winds on at the configurable rate
+    // (so a tap barely deflects and holding steers more), then a mild curve
+    // makes small deflections gentle and larger ones sharper. Returns to
+    // centre quickly for controllable feel.
+    const windRate = this._steerTarget === 0 ? this.steerSpeed * 1.8 : this.steerSpeed;
+    this._steerRaw = smooth(this._steerRaw || 0, this._steerTarget, windRate);
+    const s = this._steerRaw;
+    this.input.steer = Math.sign(s) * Math.pow(Math.abs(s), 1.5); // gamma curve
   }
 
   // clear one-shot edge flags after physics has read them
