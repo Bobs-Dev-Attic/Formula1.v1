@@ -172,9 +172,15 @@ export class Vehicle {
     if (this.speed > 2.2) {
       const slipF = Math.atan2(this.vLat + this.a * this.yawRate, speedForSlip) - steer * Math.sign(this.vLong || 1);
       const slipR = Math.atan2(this.vLat - this.b * this.yawRate, speedForSlip);
-      const cS = 9.5; // cornering stiffness scalar
-      Fyf = clamp(-cS * slipF, -maxForceF, maxForceF);
-      Fyr = clamp(-cS * slipR, -maxForceR, maxForceR);
+      // Cornering stiffness sized so grip saturates at ~8° of slip. This makes
+      // lateral force scale with the available grip/load instead of being a
+      // fixed tiny scalar (the old cS=9.5 produced ~1 N and the car wouldn't
+      // turn above walking pace).
+      const peakSlip = 0.14; // rad
+      const Cf = maxForceF / peakSlip;
+      const Cr = maxForceR / peakSlip;
+      Fyf = clamp(-Cf * slipF, -maxForceF, maxForceF);
+      Fyr = clamp(-Cr * slipR, -maxForceR, maxForceR);
       this.slip = Math.abs(slipR);
       torque = this.a * Fyf * Math.cos(steer) - this.b * Fyr;
     } else {
