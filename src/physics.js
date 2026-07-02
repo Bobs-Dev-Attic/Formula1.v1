@@ -50,10 +50,17 @@ export class Vehicle {
     this.tyreWear = 100;   // % (100 = fresh)
     this.engineTemp = 90;  // °C
 
-    this.inertia = CAR_SPEC.mass * 1.6;
+    this.reverse = false;
+
+    this.inertia = CAR_SPEC.mass * 1.5;
     this.wheelbase = 3.0;
-    this.a = 1.35;         // CG -> front axle
-    this.b = 1.65;         // CG -> rear axle
+    // Rear-biased weight distribution (engine behind the driver). Static axle
+    // load is proportional to the distance to the OPPOSITE axle, so a > b puts
+    // more load — and grip — on the rear, which stops the back stepping out so
+    // easily. Combined with the rear grip bias below (wider rear tyres).
+    this.a = 1.70;         // CG -> front axle
+    this.b = 1.30;         // CG -> rear axle
+    this.rearGripBias = 1.18; // wider rear tyres carry more lateral load
   }
 
   reset(x, z, yaw) {
@@ -61,6 +68,7 @@ export class Vehicle {
     this.velX = 0; this.velZ = 0; this.yawRate = 0;
     this.vLong = 0; this.vLat = 0; this.speed = 0;
     this.gear = 1; this.rpm = CAR_SPEC.idle;
+    this.reverse = false;
   }
 
   // --- derived setup factors ---
@@ -123,7 +131,7 @@ export class Vehicle {
 
     const grip = this.gripBase;
     const maxForceF = grip * loadF;
-    const maxForceR = grip * loadR;
+    const maxForceR = grip * loadR * this.rearGripBias;
 
     // ---------------- Engine / traction ----------------
     let power = CAR_SPEC.maxEnginePower * this.ecuF * 746; // watts-ish
@@ -145,23 +153,41 @@ export class Vehicle {
       }
     } else {
       this.wheelSpin *= 0.85;
-      // engine braking
-      driveForce = -Math.sign(this.vLong) * 900 * (this.gear <= 3 ? 1.4 : 1);
+      // engine braking, only while actually rolling forward
+      if (this.vLong > 0.3) driveForce = -900 * (this.gear <= 3 ? 1.4 : 1);
+      else driveForce = 0;
     }
 
-    // ---------------- Braking ----------------
+    // ---------------- Braking & reverse ----------------
+    // The brake input brakes while moving forward; once the car is (almost)
+    // stopped and the driver isn't on the throttle, it doubles as reverse.
     let brakeForce = 0;
+    this.reverse = false;
+    const reverseTop = 8; // m/s (~29 kph) reverse speed cap
     if (input.brake > 0) {
-      let bf = input.brake * CAR_SPEC.brakeForce;
-      // ABS caps braking to available grip to avoid lock-up
-      if (this.abs) bf = Math.min(bf, (maxForceF + maxForceR) * 0.95);
-      brakeForce = bf;
+      if (this.vLong > 0.6) {
+        let bf = input.brake * CAR_SPEC.brakeForce;
+        // ABS caps braking to available grip to avoid lock-up
+        if (this.abs) bf = Math.min(bf, (maxForceF + maxForceR) * 0.95);
+        brakeForce = bf;
+      } else if (input.throttle < 0.05 && power > 0) {
+        this.reverse = true;
+        if (this.vLong > -reverseTop) {
+          driveForce = -input.brake * Math.min(power / Math.max(absLong, 3), maxForceR * 0.7);
+        } else {
+          driveForce = 0; // hold reverse speed cap
+        }
+      }
     }
+    if (this.vLong < -0.3) this.reverse = true;
 
     // ---------------- Steering / slip angles ----------------
     const maxSteer = 0.55 * (1 - Math.min(0.6, this.speed / 90)); // less lock at speed
-    let steer = input.steer * maxSteer;
-    // steer assist (arcade) nudges toward velocity direction
+    // NB: the chase camera looks along +z, which mirrors world X on screen, so
+    // a positive steer input must produce a turn toward the driver's right
+    // (negative world-X / negative yaw). Hence the leading minus sign.
+    let steer = -input.steer * maxSteer;
+    // steer assist (arcade) counter-steers into a slide to stabilise the car
     if (this.assist.steerAssist > 0 && this.speed > 4) {
       steer += -this.vLat / Math.max(absLong, 6) * this.assist.steerAssist * 0.4;
     }
@@ -178,7 +204,9 @@ export class Vehicle {
       // turn above walking pace).
       const peakSlip = 0.14; // rad
       const Cf = maxForceF / peakSlip;
-      const Cr = maxForceR / peakSlip;
+      // Stiffer rear (grips earlier, saturates later) so the back end resists
+      // stepping out — the main cure for snap-oversteer.
+      const Cr = maxForceR / (peakSlip * 0.8);
       Fyf = clamp(-Cf * slipF, -maxForceF, maxForceF);
       Fyr = clamp(-Cr * slipR, -maxForceR, maxForceR);
       this.slip = Math.abs(slipR);
@@ -214,7 +242,11 @@ export class Vehicle {
     }
     // damp lateral velocity slightly (tyre relaxation)
     this.vLat *= 0.98;
-    this.yawRate *= 0.985;
+    // yaw damping grows with rear slip to tame snap-oversteer, plus a hard cap
+    const slipDamp = 1 - Math.min(0.08, this.slip * 0.14);
+    this.yawRate *= 0.985 * slipDamp;
+    const yawCap = 2.4;
+    this.yawRate = clamp(this.yawRate, -yawCap, yawCap);
 
     // stop creep
     if (Math.abs(this.vLong) < 0.05 && input.throttle < 0.02) this.vLong = 0;
