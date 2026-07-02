@@ -5,7 +5,7 @@
 
 // Single source of truth for the build version shown on screen.
 // Bump this on every update so it's clear what to expect.
-export const VERSION = 'v1.4.0';
+export const VERSION = 'v1.5.0';
 
 export const TEAMS = [
   { id: 'scarlet',  name: 'Scarlet Corse',   body: 0xd4160b, accent: 0xf4d03f, tyre: 0x111214 },
@@ -16,11 +16,14 @@ export const TEAMS = [
   { id: 'royal',    name: 'Royal Enstone',   body: 0x1f6feb, accent: 0xff5ea8, tyre: 0x111214 },
 ];
 
-// Assist presets scale the underlying physics grip / aids.
+// Assist presets scale the underlying physics grip / aids. Sim grip raised so
+// the car is planted (a real F1 car has enormous mechanical + aero grip); the
+// looseness of Sim now comes from having no TC/ABS/steer aids rather than from
+// being low-grip and slippery.
 export const ASSISTS = {
-  arcade:   { grip: 1.35, tcDefault: true,  absDefault: true,  steerAssist: 0.55, label: 'Arcade' },
-  balanced: { grip: 1.0,  tcDefault: true,  absDefault: true,  steerAssist: 0.3,  label: 'Balanced' },
-  sim:      { grip: 0.82, tcDefault: false, absDefault: false, steerAssist: 0.0,  label: 'Simulation' },
+  arcade:   { grip: 1.45, tcDefault: true,  absDefault: true,  steerAssist: 0.55, label: 'Arcade' },
+  balanced: { grip: 1.15, tcDefault: true,  absDefault: true,  steerAssist: 0.3,  label: 'Balanced' },
+  sim:      { grip: 1.02, tcDefault: false, absDefault: false, steerAssist: 0.0,  label: 'Simulation' },
 };
 
 // The garage setup sheet. Each entry drives real handling parameters.
@@ -51,7 +54,10 @@ export const CAR_SPEC = {
   idle: 4000,
   wheelRadius: 0.33,     // m
   dragCoeff: 0.9,        // base; scaled by wings
-  downforceCoeff: 3.2,   // base; scaled by wings
+  // Aero downforce grows with speed^2, so grip climbs the faster you go — high-
+  // speed corners can be taken far harder than slow ones. Raised so the aero
+  // grip clearly dominates weight at racing speed (as in a real F1 car).
+  downforceCoeff: 4.7,   // base; scaled by wings
   rollingResistance: 0.014,
   brakeForce: 21000,     // N max
   drsDragCut: 0.28,      // fraction of drag removed when DRS open

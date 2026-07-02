@@ -37,8 +37,15 @@ export class Controls {
 
   hintText() {
     return isTouch
-      ? 'Touch pads: accelerate / brake / steer · paddle-shift · DRS · look-back. Tap dashboard switches for TC · ABS · Lights · Pit · ERS.'
-      : 'W/↑ throttle · S/↓ brake · A/D steer · ⇧ shift-up · Ctrl shift-down · Space ERS · Z DRS · G auto-box · T TC · Y ABS · L lights · P pit · C look-back · R reset · Esc pause';
+      ? 'Touch pads: accelerate / brake / steer · paddle-shift · DRS · look-back. Tap the steering-wheel knobs & buttons for engine map, brake bias, diff, ERS, TC, ABS, lights, pit.'
+      : 'W/↑ throttle · S/↓ brake · A/D steer · ⇧ shift-up · Ctrl shift-down · Space ERS · Z DRS · G auto-box · T TC · Y ABS · L lights · P pit · C look-back · R reset · Esc pause. Click the steering-wheel knobs & buttons too.';
+  }
+
+  // Concise version shown as a corner hint during the race.
+  shortHint() {
+    return isTouch
+      ? 'Touch: gas · brake · steer · shift · DRS. Tap wheel knobs/buttons.'
+      : 'W/S · A/D · ⇧/Ctrl shift · Space ERS · Z DRS · click wheel knobs/buttons';
   }
 
   _bindKeyboard() {

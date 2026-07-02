@@ -1,111 +1,153 @@
 // -----------------------------------------------------------------------------
-// HUD: the instrument cluster an F1 driver expects — digital speed + gear dial
-// with an rpm arc, shift-light strip, DRS/ABS/TC/PIT/LIGHTS status switches
-// (clickable), fuel / ERS / tyre gauges, timing tower and a live mini-map.
+// HUD styled as a modern F1 steering wheel (see reference photos): a central
+// colour LCD (fuel · gear · speed · rpm · ERS/SOC · delta · lap), a shift-light
+// LED strip, interactive rotary knobs (ENGINE MAP · BRAKE BIAS · DIFF · ERS)
+// and function buttons (DRS · OT · PIT · N · TC · ABS · LIGHTS). Plus a timing
+// tower and a live mini-map.
+//
+// onAction(name, dir) is fired by every clickable control; the game applies it.
 // -----------------------------------------------------------------------------
 
+const ERS_MODES = ['OFF', 'BUILD', 'BAL', 'HOT'];
+
 export class HUD {
-  constructor(root, track, onToggle) {
+  constructor(root, track, onAction) {
     this.root = root;
     this.track = track;
-    this.onToggle = onToggle;
+    this.onAction = onAction;
     root.classList.remove('hidden');
     root.innerHTML = this._template();
 
-    // cache nodes
-    this.$gear = root.querySelector('.gear');
-    this.$kph = root.querySelector('.kph');
-    this.$rpmArc = root.querySelector('.rpm-arc');
+    // timing tower
     this.$pos = root.querySelector('.pos b');
-    this.$lap = root.querySelector('.lap-val');
+    this.$lapTower = root.querySelector('.lap-val');
     this.$cur = root.querySelector('.cur-val');
     this.$best = root.querySelector('.best-val');
     this.$last = root.querySelector('.last-val');
-    this.$fuel = root.querySelector('.bar.fuel i');
+
+    // LCD
+    this.$gear = root.querySelector('.lcd-gear');
+    this.$kph = root.querySelector('.lcd-kph');
+    this.$rpm = root.querySelector('.lcd-rpm');
+    this.$rpmBar = root.querySelector('.lcd-rpmbar i');
+    this.$fuel = root.querySelector('.lcd-fuel i');
     this.$fuelV = root.querySelector('.fuel-v');
-    this.$ers = root.querySelector('.bar.ers i');
-    this.$ersV = root.querySelector('.ers-v');
-    this.$tyre = root.querySelector('.bar.tyre i');
+    this.$soc = root.querySelector('.lcd-soc i');
+    this.$socV = root.querySelector('.soc-v');
+    this.$delta = root.querySelector('.lcd-delta');
+    this.$lapTime = root.querySelector('.lcd-laptime');
     this.$tyreV = root.querySelector('.tyre-v');
-    this.$toast = root.querySelector('.hud-toast');
-    this.$revLeds = [...root.querySelectorAll('.rev-led')];
-    this.$lights = {
-      drs: root.querySelector('.slight.drs'),
-      abs: root.querySelector('.slight.abs'),
-      tc: root.querySelector('.slight.tc'),
-      pit: root.querySelector('.slight.pit'),
-      light: root.querySelector('.slight.light'),
-      rev: root.querySelector('.slight.rev'),
+
+    // LEDs
+    this.$leds = [...root.querySelectorAll('.wled')];
+
+    // knobs
+    this.$knobs = {
+      eng: root.querySelector('.knob.eng'),
+      bb: root.querySelector('.knob.bb'),
+      diff: root.querySelector('.knob.diff'),
+      ers: root.querySelector('.knob.ers'),
     };
+
+    // buttons / indicators
+    this.$btn = {
+      drs: root.querySelector('.wbtn.drs'),
+      ot: root.querySelector('.wbtn.ot'),
+      pit: root.querySelector('.wbtn.pit'),
+      n: root.querySelector('.wbtn.n'),
+      tc: root.querySelector('.wbtn.tc'),
+      abs: root.querySelector('.wbtn.abs'),
+      lights: root.querySelector('.wbtn.lights'),
+    };
+
+    // wire interactions
+    const clickAct = (el, name) => el?.addEventListener('click', (e) => this.onAction?.(name, e.shiftKey ? -1 : 1));
+    clickAct(this.$knobs.eng, 'eng');
+    clickAct(this.$knobs.bb, 'bb');
+    clickAct(this.$knobs.diff, 'diff');
+    clickAct(this.$knobs.ers, 'ers');
+    clickAct(this.$btn.drs, 'drsToggle');
+    clickAct(this.$btn.ot, 'ot');
+    clickAct(this.$btn.pit, 'pit');
+    clickAct(this.$btn.n, 'neutral');
+    clickAct(this.$btn.tc, 'tc');
+    clickAct(this.$btn.abs, 'abs');
+    clickAct(this.$btn.lights, 'lights');
+
+    this.$toast = root.querySelector('.hud-toast');
+    this._toastTimer = 0;
     this.$map = root.querySelector('.hud-map canvas');
     this.mapCtx = this.$map.getContext('2d');
-
-    // make status switches interactive
-    const wire = (el, name) => el?.addEventListener('click', () => this.onToggle?.(name));
-    wire(this.$lights.drs, 'drsToggle');
-    wire(this.$lights.abs, 'abs');
-    wire(this.$lights.tc, 'tc');
-    wire(this.$lights.pit, 'pit');
-    wire(this.$lights.light, 'lights');
-
-    this._toastTimer = 0;
     this._drawMapStatic();
-
-    const arcLen = 2 * Math.PI * 66 * 0.75;
-    this._arcLen = arcLen;
-    this.$rpmArc.style.strokeDasharray = `${arcLen} ${arcLen}`;
   }
 
   _template() {
-    const leds = Array.from({ length: 12 }, () => '<div class="rev-led"></div>').join('');
-    const r = 66;
+    const leds = Array.from({ length: 15 }, (_, i) => `<div class="wled" data-i="${i}"></div>`).join('');
+    const knob = (cls, label) => `
+      <div class="knob-wrap">
+        <div class="knob ${cls}" title="click to change · shift+click to go down">
+          <span class="knob-dot"></span>
+          <b class="knob-val">–</b>
+        </div>
+        <small>${label}</small>
+      </div>`;
     return `
-      <div class="rev-strip">${leds}</div>
-
+      <!-- Timing tower -->
       <div class="hud-timing">
-        <div class="pos"><b>1</b><small>POSITION · LAP <span class="lap-val">1</span></small></div>
+        <div class="pos"><b>1</b><small>POS · LAP <span class="lap-val">1/1</span></small></div>
         <div class="times">
-          <div><span>CURRENT</span><em class="cur-val">--:--.---</em></div>
+          <div><span>CUR</span><em class="cur-val">--:--.---</em></div>
           <div><span>LAST</span><em class="last-val">--:--.---</em></div>
           <div><span>BEST</span><em class="best-val">--:--.---</em></div>
         </div>
       </div>
 
       <div class="hud-map"><canvas width="260" height="260"></canvas></div>
-
       <div class="hud-toast"></div>
 
-      <div class="hud-cluster">
-        <div class="dash-side">
-          <div class="status-lights">
-            <div class="slight drs" title="DRS (Z)">DRS</div>
-            <div class="slight abs" title="ABS (Y)">ABS</div>
-            <div class="slight tc" title="Traction Control (T)">TC</div>
-            <div class="slight pit" title="Pit Limiter (P)">PIT</div>
-            <div class="slight light" title="Lights (L)">☀</div>
-            <div class="slight rev" title="Shift up">▲</div>
-          </div>
-          <div class="gauge-strip">
-            <div class="gauge-row"><span class="lab">FUEL</span><div class="bar fuel"><i style="width:100%"></i></div><b class="fuel-v">100</b></div>
-            <div class="gauge-row"><span class="lab">ERS</span><div class="bar ers"><i style="width:100%"></i></div><b class="ers-v">100</b></div>
-            <div class="gauge-row"><span class="lab">TYRE</span><div class="bar tyre"><i style="width:100%"></i></div><b class="tyre-v">100</b></div>
-          </div>
-        </div>
+      <!-- Steering wheel -->
+      <div class="wheel">
+        <div class="wheel-grip left"></div>
+        <div class="wheel-grip right"></div>
+        <div class="wheel-face">
+          <div class="wheel-leds">${leds}</div>
 
-        <div class="dash">
-          <svg viewBox="0 0 150 150">
-            <circle cx="75" cy="75" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)"
-                    stroke-width="7" stroke-dasharray="${2 * Math.PI * r * 0.75} ${2 * Math.PI * r}"
-                    transform="rotate(135 75 75)" stroke-linecap="round"/>
-            <circle class="rpm-arc" cx="75" cy="75" r="${r}" fill="none" stroke="#e10600"
-                    stroke-width="7" transform="rotate(135 75 75)" stroke-linecap="round"
-                    stroke-dashoffset="0"/>
-          </svg>
-          <div class="readout">
-            <div class="gear">N</div>
-            <div class="rule"></div>
-            <div class="kph">0</div>
-            <div class="unit">KPH</div>
+          <div class="lcd">
+            <div class="lcd-rpmbar"><i></i></div>
+            <div class="lcd-main">
+              <div class="lcd-col left">
+                <div class="lcd-fuel bar"><i></i></div>
+                <span class="lcd-label">FUEL <b class="fuel-v">100</b></span>
+                <span class="lcd-rpm">0</span><span class="lcd-label">RPM</span>
+              </div>
+              <div class="lcd-col center">
+                <span class="lcd-kph">0</span><span class="lcd-label">KPH</span>
+                <span class="lcd-gear">N</span>
+              </div>
+              <div class="lcd-col right">
+                <span class="lcd-delta">+0.00</span><span class="lcd-label">DELTA</span>
+                <span class="lcd-laptime">0:00.0</span><span class="lcd-label">LAP · TYRE <b class="tyre-v">100</b></span>
+              </div>
+            </div>
+            <div class="lcd-soc bar"><i></i></div>
+            <span class="lcd-soclabel">ERS <b class="soc-v">100</b>%</span>
+          </div>
+
+          <div class="wheel-knobs">
+            ${knob('eng', 'ENGINE')}
+            ${knob('bb', 'BRK BIAS')}
+            ${knob('diff', 'DIFF')}
+            ${knob('ers', 'ERS')}
+          </div>
+
+          <div class="wheel-buttons">
+            <button class="wbtn n">N</button>
+            <button class="wbtn drs">DRS</button>
+            <button class="wbtn ot">OT</button>
+            <button class="wbtn pit">PIT</button>
+            <button class="wbtn tc">TC</button>
+            <button class="wbtn abs">ABS</button>
+            <button class="wbtn lights">☀</button>
           </div>
         </div>
       </div>
@@ -126,56 +168,81 @@ export class HUD {
   }
 
   update(v, timing, dt) {
-    // gear + speed
-    this.$gear.textContent = v.reverse ? 'R' : (v.speed < 0.5 && v.gear === 1 ? 'N' : v.gear);
-    this.$kph.textContent = Math.round(v.kph);
-
-    // rpm arc
     const pct = Math.max(0, Math.min(1, v.rpmPct));
-    this.$rpmArc.style.strokeDashoffset = `${this._arcLen * (1 - pct)}`;
-    this.$rpmArc.style.stroke = pct > 0.92 ? '#ff2d1a' : pct > 0.75 ? '#ffb300' : '#e10600';
 
-    // shift lights
-    for (let i = 0; i < this.$revLeds.length; i++) {
-      const on = pct > 0.55 + (i / this.$revLeds.length) * 0.44;
-      const col = i < 5 ? '#24e07a' : i < 9 ? '#ffb300' : '#ff2d1a';
-      this.$revLeds[i].style.background = on ? col : '#1c2130';
-    }
-    this._set(this.$lights.rev, pct > 0.93);
+    // LCD numerics
+    this.$gear.textContent = v.reverse ? 'R' : (v.speed < 0.5 && v.gear === 1 ? 'N' : v.gear);
+    this.$gear.style.color = pct > 0.93 ? '#ff3b30' : '#eafff0';
+    this.$kph.textContent = Math.round(v.kph);
+    this.$rpm.textContent = Math.round(v.rpm);
+    this.$rpmBar.style.width = `${pct * 100}%`;
+    this.$rpmBar.style.background = pct > 0.92 ? '#ff3b30' : pct > 0.75 ? '#ffb300' : '#31d15b';
 
-    // status switches
-    this._set(this.$lights.drs, v.drs);
-    this._set(this.$lights.abs, v.abs);
-    this._set(this.$lights.tc, v.tc);
-    this._set(this.$lights.pit, v.pitLimiter);
-    this._set(this.$lights.light, v.lights);
-
-    // gauges
     this.$fuel.style.width = `${v.fuel}%`;
     this.$fuelV.textContent = Math.round(v.fuel);
-    this.$ers.style.width = `${v.ersCharge}%`;
-    this.$ersV.textContent = Math.round(v.ersCharge);
-    this.$tyre.style.width = `${v.tyreWear}%`;
+    this.$soc.style.width = `${v.ersCharge}%`;
+    this.$socV.textContent = Math.round(v.ersCharge);
     this.$tyreV.textContent = Math.round(v.tyreWear);
-    this.$tyre.parentElement.style.filter = v.tyreWear < 25 ? 'saturate(0.4)' : 'none';
 
-    // timing
+    // shift-light LEDs
+    for (let i = 0; i < this.$leds.length; i++) {
+      const on = pct > 0.5 + (i / this.$leds.length) * 0.48;
+      const col = i < 5 ? '#31d15b' : i < 10 ? '#ff3b30' : '#3b6bff';
+      this.$leds[i].style.background = on ? col : '#20242e';
+      this.$leds[i].style.boxShadow = on ? `0 0 6px ${col}` : 'none';
+    }
+
+    // knobs
+    this._setKnob('eng', v.setup.ecuMap, 1, 6, v.setup.ecuMap);
+    this._setKnob('bb', v.setup.brakeBias, 50, 70, v.setup.brakeBias);
+    this._setKnob('diff', v.setup.diff, 0, 100, v.setup.diff);
+    this._setKnob('ers', v.ersMode, 0, 3, ERS_MODES[v.ersMode]);
+
+    // buttons
+    this._on(this.$btn.drs, v.drs);
+    this._on(this.$btn.ot, v.ers);
+    this._on(this.$btn.pit, v.pitLimiter);
+    this._on(this.$btn.n, v.neutral);
+    this._on(this.$btn.tc, v.tc);
+    this._on(this.$btn.abs, v.abs);
+    this._on(this.$btn.lights, v.lights);
+
+    // timing tower
     this.$pos.textContent = timing.position;
-    this.$lap.textContent = `${Math.min(timing.lap, this.track.def.laps)}/${this.track.def.laps}`;
+    this.$lapTower.textContent = `${Math.min(timing.lap, this.track.def.laps)}/${this.track.def.laps}`;
     this.$cur.textContent = fmt(timing.current);
     this.$last.textContent = timing.last != null ? fmt(timing.last) : '--:--.---';
     this.$best.textContent = timing.best != null ? fmt(timing.best) : '--:--.---';
+    this.$lapTime.textContent = fmtShort(timing.current);
 
-    // toast fade
+    // live delta vs best pace (current time minus where best lap was at this progress)
+    if (timing.best != null && timing.lap > 1) {
+      const expected = timing.best * timing.progress;
+      const d = (timing.current - expected) / 1000;
+      this.$delta.textContent = (d >= 0 ? '+' : '') + d.toFixed(2);
+      this.$delta.style.color = d <= 0 ? '#31d15b' : '#ff6a5a';
+    } else {
+      this.$delta.textContent = '--';
+      this.$delta.style.color = '#9aa2b1';
+    }
+
     if (this._toastTimer > 0) {
       this._toastTimer -= dt * 1000;
       if (this._toastTimer <= 0) this.$toast.classList.remove('show');
     }
-
     this._drawMapCar(v);
   }
 
-  _set(el, on) { if (el) el.classList.toggle('on', !!on); }
+  _setKnob(name, value, min, max, display) {
+    const k = this.$knobs[name];
+    if (!k) return;
+    const frac = (value - min) / (max - min || 1);
+    const ang = -135 + frac * 270; // sweep -135°..+135°
+    k.querySelector('.knob-dot').style.transform = `rotate(${ang}deg)`;
+    k.querySelector('.knob-val').textContent = display;
+  }
+
+  _on(el, state) { if (el) el.classList.toggle('on', !!state); }
 
   _drawMapStatic() {
     const cl = this.track.centreline;
@@ -184,12 +251,9 @@ export class HUD {
       minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
       minZ = Math.min(minZ, p.y); maxZ = Math.max(maxZ, p.y);
     }
-    const pad = 24;
     const w = this.$map.width, h = this.$map.height;
-    const sx = (w - pad * 2) / (maxX - minX);
-    const sz = (h - pad * 2) / (maxZ - minZ);
-    const s = Math.min(sx, sz);
-    this._map = { minX, minZ, s, pad, w, h,
+    const s = Math.min((w - 48) / (maxX - minX), (h - 48) / (maxZ - minZ));
+    this._map = { minX, minZ, s,
       ox: (w - (maxX - minX) * s) / 2, oz: (h - (maxZ - minZ) * s) / 2 };
   }
 
@@ -202,7 +266,7 @@ export class HUD {
     const ctx = this.mapCtx;
     const cl = this.track.centreline;
     ctx.clearRect(0, 0, this.$map.width, this.$map.height);
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
     ctx.lineWidth = 3;
     ctx.beginPath();
     for (let i = 0; i < cl.length; i++) {
@@ -211,11 +275,9 @@ export class HUD {
     }
     ctx.closePath();
     ctx.stroke();
-    // start line dot
     const [sx, sy] = this._proj(this.track.start.x, this.track.start.y);
     ctx.fillStyle = '#00d2ff';
     ctx.fillRect(sx - 3, sy - 3, 6, 6);
-    // car
     const [cx, cy] = this._proj(v.x, v.z);
     ctx.fillStyle = '#e10600';
     ctx.beginPath();
@@ -235,4 +297,11 @@ function fmt(ms) {
   const s = Math.floor((ms % 60000) / 1000);
   const mm = Math.floor(ms % 1000);
   return `${m}:${String(s).padStart(2, '0')}.${String(mm).padStart(3, '0')}`;
+}
+function fmtShort(ms) {
+  if (ms == null || !isFinite(ms)) return '0:00.0';
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  const t = Math.floor((ms % 1000) / 100);
+  return `${m}:${String(s).padStart(2, '0')}.${t}`;
 }

@@ -20,6 +20,10 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Cinematic tone mapping + correct colour space lift the low-poly look.
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(62, 1, 0.1, 1200);
@@ -72,8 +76,9 @@ export class Game {
     });
 
     // HUD
-    this.hud = new HUD(document.getElementById('hud'), this.track, (n) => this._toggle(n));
-    this.hud.setHint(this.controls.hintText());
+    this.hud = new HUD(document.getElementById('hud'), this.track, (n, d) => this._toggle(n, d));
+    this._otLatch = false;
+    this.hud.setHint(this.controls.shortHint());
 
     this._audioInit();
     this._lookBack = false;
@@ -109,9 +114,15 @@ export class Game {
   }
   onPause(cb) { this._onPause = cb; }
 
-  _toggle(name) {
+  _toggle(name, dir = 1) {
     const v = this.vehicle;
     if (!v) return;
+    const wrap = (val, min, max, step) => {
+      let n = val + dir * step;
+      if (n > max) n = min;
+      if (n < min) n = max;
+      return n;
+    };
     switch (name) {
       case 'drsToggle': v.drs = !v.drs; this.hud.toast(v.drs ? 'DRS OPEN' : 'DRS CLOSED', 700); break;
       case 'tc': v.tc = !v.tc; this.hud.toast(`TC ${v.tc ? 'ON' : 'OFF'}`, 700); break;
@@ -119,6 +130,13 @@ export class Game {
       case 'lights': v.lights = !v.lights; break;
       case 'pit': v.pitLimiter = !v.pitLimiter; this.hud.toast(`PIT LIMITER ${v.pitLimiter ? 'ON' : 'OFF'}`, 800); break;
       case 'autoGear': v.autoGear = !v.autoGear; this.hud.toast(`GEARS ${v.autoGear ? 'AUTO' : 'MANUAL'}`, 800); break;
+      // steering-wheel controls
+      case 'ot': this._otLatch = !this._otLatch; this.hud.toast(this._otLatch ? 'OVERTAKE ON' : 'OVERTAKE OFF', 700); break;
+      case 'neutral': v.neutral = !v.neutral; this.hud.toast(v.neutral ? 'NEUTRAL' : 'IN GEAR', 700); break;
+      case 'eng': v.setup.ecuMap = wrap(v.setup.ecuMap, 1, 6, 1); this.hud.toast(`ENGINE MAP ${v.setup.ecuMap}`, 700); break;
+      case 'bb': v.setup.brakeBias = wrap(v.setup.brakeBias, 50, 70, 1); this.hud.toast(`BRAKE BIAS ${v.setup.brakeBias}%F`, 700); break;
+      case 'diff': v.setup.diff = wrap(v.setup.diff, 0, 100, 5); this.hud.toast(`DIFF ${v.setup.diff}%`, 700); break;
+      case 'ers': v.ersMode = wrap(v.ersMode, 0, 3, 1); this.hud.toast(`ERS ${['OFF', 'BUILD', 'BALANCED', 'HOTLAP'][v.ersMode]}`, 800); break;
     }
   }
 
@@ -168,6 +186,9 @@ export class Game {
       // input can't be read as reverse before the lights go out)
       input = { ...input, throttle: 0, brake: 0, steer: 0 };
     }
+
+    // manual ERS overtake: held button (Space) OR the latched OT switch
+    v.ers = !!(input.ers || this._otLatch);
 
     v.update(dt, input);
 
