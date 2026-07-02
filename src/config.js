@@ -5,7 +5,7 @@
 
 // Single source of truth for the build version shown on screen.
 // Bump this on every update so it's clear what to expect.
-export const VERSION = 'v1.8.0';
+export const VERSION = 'v1.8.1';
 
 export const TEAMS = [
   { id: 'scarlet',  name: 'Scarlet Corse',   body: 0xd4160b, accent: 0xf4d03f, tyre: 0x111214 },
@@ -45,9 +45,11 @@ export const SETUP_SCHEMA = [
 ];
 
 // Map the 1..10 steering-rate setting to a per-second wind-on rate used by the
-// input smoother. Low values make taps produce small turns.
+// input smoother. Low values make taps produce small turns. The adjustment span
+// is doubled (was 5.4) so each notch of the STEER control changes the feel twice
+// as much and the top end is far more direct.
 export function steerRampRate(setting) {
-  return 1.1 + ((setting - 1) / 9) * 5.4; // 1.1 (slow/progressive) .. 6.5 (direct)
+  return 1.1 + ((setting - 1) / 9) * 10.8; // 1.1 (slow/progressive) .. 11.9 (very direct)
 }
 
 export function defaultSetup() {
