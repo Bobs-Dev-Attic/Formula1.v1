@@ -211,11 +211,11 @@ export class Game {
     g.position.set(v.x, 0, v.z);
     g.rotation.y = v.yaw;
 
-    // body roll & pitch for feel
-    const roll = THREE.MathUtils.clamp(-v.vLat * 0.02, -0.12, 0.12);
-    const pitch = THREE.MathUtils.clamp((v.vLong - this._prevVLong || 0) * -0.02, -0.06, 0.06);
-    g.rotation.z = THREE.MathUtils.lerp(g.rotation.z, roll, 0.2);
-    g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, pitch, 0.2);
+    // Stiff suspension: no body roll in corners at all, and only a tiny,
+    // quickly-settling pitch under hard accel/brake (dive/squat).
+    g.rotation.z = 0;
+    const pitch = THREE.MathUtils.clamp((v.vLong - (this._prevVLong || 0)) * -0.006, -0.02, 0.02);
+    g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, pitch, 0.35);
     this._prevVLong = v.vLong;
 
     // wheels spin
