@@ -185,25 +185,22 @@ export function buildCar(team) {
   num.rotation.x = -0.2;
   car.add(num);
 
-  // ---------------- Wheels (with rims + brake discs) ----------------
-  const wheelGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.4, 16);
+  // ---------------- Wheels ----------------
+  // A solid dark tyre with a small, inset dark hub. Everything is kept inside
+  // the tyre width so no bright faces or rings poke out (which looked like
+  // collider outlines).
+  const tyreW = 0.4;
+  const wheelGeo = new THREE.CylinderGeometry(0.34, 0.34, tyreW, 18);
   wheelGeo.rotateZ(Math.PI / 2);
-  const rimMat = new THREE.MeshStandardMaterial({ color: 0x9aa0aa, metalness: 0.75, roughness: 0.3 });
-  const discMat = new THREE.MeshStandardMaterial({ color: 0x2a2c33, metalness: 0.6, roughness: 0.5 });
+  const hubMat = new THREE.MeshStandardMaterial({ color: 0x2c2f37, metalness: 0.5, roughness: 0.55 });
   function makeWheel() {
     const g = new THREE.Group();
     const tyre = new THREE.Mesh(wheelGeo, tyreMat);
     g.add(tyre);
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.42, 10), rimMat);
-    rim.rotation.z = Math.PI / 2;
-    g.add(rim);
-    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.06, 14), discMat);
-    disc.rotation.z = Math.PI / 2;
-    g.add(disc);
-    // sidewall marking ring
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.015, 4, 18), accent);
-    ring.position.x = 0.2;
-    g.add(ring);
+    // hub sits just inside the tyre faces so it never protrudes
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, tyreW - 0.06, 12), hubMat);
+    hub.rotation.z = Math.PI / 2;
+    g.add(hub);
     return g;
   }
   const wheelPos = {
