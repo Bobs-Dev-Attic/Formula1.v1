@@ -164,8 +164,9 @@ export class Game {
         this.hud.toast('GO!', 900);
         this.timing.begin();
       }
-      // hold car with brakes during countdown
-      input = { ...input, throttle: 0, brake: 1 };
+      // hold the car still during countdown (no throttle/brake so the brake
+      // input can't be read as reverse before the lights go out)
+      input = { ...input, throttle: 0, brake: 0, steer: 0 };
     }
 
     v.update(dt, input);

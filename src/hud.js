@@ -127,7 +127,7 @@ export class HUD {
 
   update(v, timing, dt) {
     // gear + speed
-    this.$gear.textContent = v.speed < 0.5 && v.gear === 1 ? 'N' : v.gear;
+    this.$gear.textContent = v.reverse ? 'R' : (v.speed < 0.5 && v.gear === 1 ? 'N' : v.gear);
     this.$kph.textContent = Math.round(v.kph);
 
     // rpm arc
