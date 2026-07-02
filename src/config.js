@@ -5,7 +5,7 @@
 
 // Single source of truth for the build version shown on screen.
 // Bump this on every update so it's clear what to expect.
-export const VERSION = 'v1.7.0';
+export const VERSION = 'v1.8.0';
 
 export const TEAMS = [
   { id: 'scarlet',  name: 'Scarlet Corse',   body: 0xd4160b, accent: 0xf4d03f, tyre: 0x111214 },
@@ -20,10 +20,12 @@ export const TEAMS = [
 // the car is planted (a real F1 car has enormous mechanical + aero grip); the
 // looseness of Sim now comes from having no TC/ABS/steer aids rather than from
 // being low-grip and slippery.
+// slipCap = how far (radians) the velocity vector may lag the heading before
+// grip "catches" it. Small = planted/no sliding; large = allowed to drift.
 export const ASSISTS = {
-  arcade:   { grip: 1.45, tcDefault: true,  absDefault: true,  steerAssist: 0.55, label: 'Arcade' },
-  balanced: { grip: 1.15, tcDefault: true,  absDefault: true,  steerAssist: 0.3,  label: 'Balanced' },
-  sim:      { grip: 1.02, tcDefault: false, absDefault: false, steerAssist: 0.0,  label: 'Simulation' },
+  arcade:   { grip: 1.45, tcDefault: true,  absDefault: true,  steerAssist: 0.55, slipCap: 0.07, label: 'Arcade' },
+  balanced: { grip: 1.15, tcDefault: true,  absDefault: true,  steerAssist: 0.3,  slipCap: 0.10, label: 'Balanced' },
+  sim:      { grip: 1.02, tcDefault: false, absDefault: false, steerAssist: 0.0,  slipCap: 0.18, label: 'Simulation' },
 };
 
 // The garage setup sheet. Each entry drives real handling parameters.

@@ -251,15 +251,19 @@ export class Vehicle {
 
     if (this.speed > 2.2) {
       this.yawRate += (torque / (this.inertia * diffDamp)) * dt;
-      // Steering authority: the pure slip model settles into an understeer-
-      // limited yaw balance well short of the grip limit, so the car feels like
-      // it won't turn. Nudge yaw toward the steering target, but CAP that target
-      // at the grip-limited yaw rate so it stays planted and can't spin.
+      // Steering authority. The yaw target is PROPORTIONAL to how far the driver
+      // is steering (steerFrac), and capped by BOTH what the tyres can hold
+      // (gripYawMax) and the steering geometry (kinYawMax). Using the raw
+      // kinematic tan(steer) here instead made any real steer input saturate to
+      // the grip limit at speed, so the car was always at the edge and slid;
+      // scaling by steerFrac means partial steering gives a partial, clean turn
+      // and only full lock reaches the grip limit — a sharp turn WITHOUT sliding.
+      const steerFrac = clamp(steer / maxSteer, -1, 1);
       const maxLatA = (maxForceF + maxForceR) / CAR_SPEC.mass;
-      const gripYawMax = maxLatA / Math.max(this.speed, 6);
-      let targetYaw = (this.vLong / this.wheelbase) * Math.tan(steer);
-      targetYaw = clamp(targetYaw, -gripYawMax, gripYawMax);
-      this.yawRate += (targetYaw - this.yawRate) * 0.12;
+      const gripYawMax = (maxLatA * 0.95) / Math.max(this.speed, 6);
+      const kinYawMax = Math.abs(this.vLong / this.wheelbase * Math.tan(maxSteer));
+      const targetYaw = steerFrac * Math.min(gripYawMax, kinYawMax);
+      this.yawRate += (targetYaw - this.yawRate) * 0.16;
     }
     // Light tyre-relaxation damping only. The real yaw damping comes from the
     // rear slip angle (slipR rises with yawRate -> restoring torque); a heavy
@@ -270,7 +274,7 @@ export class Vehicle {
     // the grip "catches" the slide. This keeps the car from drifting wildly,
     // makes cornering radius shrink monotonically with steering, and — being
     // grip-dependent — lets Sim slide more and Arcade stay planted.
-    const maxSlipAng = 0.26 / this.assist.grip; // rad (~15° balanced, ~11° arcade, ~18° sim)
+    const maxSlipAng = this.assist.slipCap; // rad (~6° balanced, ~4° arcade, ~10° sim)
     const maxVLat = Math.tan(maxSlipAng) * Math.max(absLong, 4);
     this.vLat = clamp(this.vLat, -maxVLat, maxVLat);
     // A touch of extra yaw damping that grows with rear slip catches snap
