@@ -605,3 +605,21 @@ button.ghost {
 @media (pointer: coarse) {
   .t-pause { display: flex; }
 }
+
+/* ---------- Version badge ---------- */
+#version-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  z-index: 70;
+  pointer-events: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  background: rgba(10, 12, 20, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 8px;
+  opacity: 0.85;
+}

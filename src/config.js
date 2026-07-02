@@ -3,6 +3,10 @@
 // fully-adjustable car setup an F1 engineer would tweak in the garage.
 // -----------------------------------------------------------------------------
 
+// Single source of truth for the build version shown on screen.
+// Bump this on every update so it's clear what to expect.
+export const VERSION = 'v1.1.0';
+
 export const TEAMS = [
   { id: 'scarlet',  name: 'Scarlet Corse',   body: 0xd4160b, accent: 0xf4d03f, tyre: 0x111214 },
   { id: 'silver',   name: 'Silver Arrow',    body: 0xd7dbe0, accent: 0xe10600, tyre: 0x111214 },

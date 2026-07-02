@@ -5,8 +5,15 @@
 
 import { Game } from './game.js';
 import { TRACKS } from './tracks.js';
-import { TEAMS, SETUP_SCHEMA, defaultSetup } from './config.js';
+import { TEAMS, SETUP_SCHEMA, defaultSetup, VERSION } from './config.js';
 import { Controls } from './controls.js';
+
+// Stamp the build version everywhere the player can see it.
+const badge = document.getElementById('version-badge');
+if (badge) badge.textContent = `FORMULA 1 · V1 · ${VERSION}`;
+const menuTag = document.querySelector('#menu .tag');
+if (menuTag) menuTag.textContent = `Configurable 3D F1 · Three.js · ${VERSION}`;
+document.title = `Formula 1 · V1 ${VERSION}`;
 
 const STORE = 'f1v1.save';
 
